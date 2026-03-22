@@ -90,6 +90,11 @@ export function zodToJsonSchema(schema: ZodObject<ZodRawShape>): Record<string, 
       prop.description = (zodType as z.ZodTypeAny)._def.description;
     }
 
+    // Include default values for MCP consumers
+    if ((zodType as z.ZodTypeAny) instanceof z.ZodDefault) {
+      prop.default = (zodType as z.ZodDefault<z.ZodTypeAny>)._def.defaultValue();
+    }
+
     properties[key] = prop;
 
     if (!isOptional(zodType as z.ZodTypeAny)) {

@@ -12,14 +12,13 @@ import { runMcp } from "./mcp/runner.js";
 
 export async function run(connector: ConnectorDef): Promise<void> {
   // Detect mode from argv or environment
-  const args = process.argv.slice(2);
+  const isMcpFlag = process.argv.includes("--mcp");
   const mode = process.env.AGENTREADY_MODE
-    || (args[0] === "--mcp" ? "mcp" : "cli");
+    || (isMcpFlag ? "mcp" : "cli");
 
   if (mode === "mcp") {
-    // Remove --mcp flag before passing to MCP runner
-    const mcpIndex = args.indexOf("--mcp");
-    if (mcpIndex !== -1) process.argv.splice(mcpIndex + 2, 1);
+    // Remove --mcp flag so it doesn't interfere with downstream parsing
+    process.argv = process.argv.filter(a => a !== "--mcp");
     await runMcp(connector);
   } else {
     await runCli(connector);

@@ -3,21 +3,16 @@
   "version": "0.1.0",
   "description": "Define tools once, get both CLI and MCP server. The dual-interface framework for AI agent tooling.",
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "bin": {
-    "agentready": "dist/bin/agentready.js"
-  },
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
   "exports": {
-    ".": "./dist/index.js",
-    "./cli": "./dist/cli/runner.js",
-    "./mcp": "./dist/mcp/runner.js"
+    ".": "./dist/src/index.js",
+    "./cli": "./dist/src/cli/runner.js",
+    "./mcp": "./dist/src/mcp/runner.js"
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch",
-    "start:mcp": "node dist/bin/agentready.js mcp",
-    "start:cli": "node dist/bin/agentready.js cli"
+    "dev": "tsc --watch"
   },
   "keywords": ["ai", "agent", "mcp", "cli", "model-context-protocol", "tooling", "automation"],
   "author": "Robson",

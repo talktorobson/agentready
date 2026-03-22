@@ -27,8 +27,9 @@ async function request(path: string, options?: RequestInit): Promise<unknown> {
 
 // ─── Public API ────────────────────────────────────────────────────
 
-export async function getIssue(issueKey: string): Promise<unknown> {
-  return request(`/issue/${issueKey}`);
+export async function getIssue(issueKey: string, fields?: string[]): Promise<unknown> {
+  const query = fields ? `?fields=${fields.join(",")}` : "";
+  return request(`/issue/${issueKey}${query}`);
 }
 
 export async function searchIssues(jql: string, maxResults = 20, fields?: string[]): Promise<unknown> {

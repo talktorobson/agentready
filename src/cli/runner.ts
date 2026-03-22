@@ -108,9 +108,23 @@ function printToolHelp(tool: AnyToolDef): void {
 export async function runCli(connector: ConnectorDef): Promise<void> {
   const { command, flags } = parseArgs(process.argv);
 
-  // Help or no command (show before env check)
-  if (!command || flags.help === true) {
+  // Global help or no command (show before env check)
+  if (!command || (flags.help === true && !command)) {
     printHelp(connector);
+    process.exit(0);
+  }
+
+  // Find tool (before env check so --help works without credentials)
+  const tool = connector.tools.find(t => t.name === command || t.name.replace(/_/g, "-") === command);
+  if (!tool) {
+    process.stderr.write(`Error: Unknown command "${command}"\n`);
+    process.stderr.write(`Run "${connector.name} --help" for available commands.\n\n`);
+    process.exit(1);
+  }
+
+  // Per-tool help (no env vars needed)
+  if (flags.help === true) {
+    printToolHelp(tool);
     process.exit(0);
   }
 
@@ -122,17 +136,6 @@ export async function runCli(connector: ConnectorDef): Promise<void> {
       process.exit(1);
     }
   }
-
-  // Find tool
-  const tool = connector.tools.find(t => t.name === command || t.name.replace(/_/g, "-") === command);
-  if (!tool) {
-    process.stderr.write(`Error: Unknown command "${command}"\n`);
-    process.stderr.write(`Run "${connector.name} --help" for available commands.\n\n`);
-    process.exit(1);
-  }
-
-  // Tool help (already handled above in the !command check)
-
 
   // Run setup if defined
   if (connector.setup) {

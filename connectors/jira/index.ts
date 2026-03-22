@@ -8,9 +8,11 @@ const getIssue = defineTool({
   description: "Get a Jira issue by key (e.g. SDT-1234). Returns summary, status, assignee, description, and comments.",
   parameters: z.object({
     issue_key: z.string().describe("Jira issue key, e.g. SDT-1234"),
+    fields: z.string().optional().describe("Comma-separated field names to include (e.g. summary,status,assignee)"),
   }),
-  async execute({ issue_key }) {
-    const issue = await jira.getIssue(issue_key);
+  async execute({ issue_key, fields }) {
+    const fieldList = fields ? fields.split(",").map(f => f.trim()) : undefined;
+    const issue = await jira.getIssue(issue_key, fieldList);
     return { content: JSON.stringify(issue, null, 2) };
   },
 });
