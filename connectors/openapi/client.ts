@@ -8,9 +8,10 @@ export interface RequestConfig {
   query?: Record<string, string>;
   headers?: Record<string, string>;
   body?: unknown;
-  authType?: "bearer" | "apikey";
+  authType?: "bearer" | "apikey" | "basic";
   authToken?: string;
   authHeader?: string;
+  authUser?: string;
 }
 
 export async function apiRequest(config: RequestConfig): Promise<unknown> {
@@ -33,7 +34,12 @@ export async function apiRequest(config: RequestConfig): Promise<unknown> {
 
   // Auth
   if (config.authToken) {
-    if (config.authType === "apikey") {
+    if (config.authType === "basic") {
+      const credentials = config.authUser
+        ? `${config.authUser}:${config.authToken}`
+        : config.authToken;
+      headers["Authorization"] = `Basic ${Buffer.from(credentials).toString("base64")}`;
+    } else if (config.authType === "apikey") {
       headers[config.authHeader || "X-API-Key"] = config.authToken;
     } else {
       headers["Authorization"] = `Bearer ${config.authToken}`;

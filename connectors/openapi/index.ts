@@ -12,9 +12,10 @@ export function buildConnector(spec: OpenAPISpec): ConnectorDef {
     || "http://localhost:8080";
 
   // Auth config
-  const authType = (process.env.OPENAPI_AUTH_TYPE as "bearer" | "apikey") || "bearer";
+  const authType = (process.env.OPENAPI_AUTH_TYPE as "bearer" | "apikey" | "basic") || "bearer";
   const authToken = process.env.OPENAPI_AUTH_TOKEN;
   const authHeader = process.env.OPENAPI_AUTH_HEADER;
+  const authUser = process.env.OPENAPI_AUTH_USER;
 
   // Filtering
   const includeTags = process.env.OPENAPI_INCLUDE_TAGS
@@ -34,6 +35,7 @@ export function buildConnector(spec: OpenAPISpec): ConnectorDef {
     authType: authToken ? authType : undefined,
     authToken,
     authHeader,
+    authUser,
     includeTags,
     excludeOperations,
   };
@@ -48,8 +50,9 @@ export function buildConnector(spec: OpenAPISpec): ConnectorDef {
       { name: "OPENAPI_SPEC_PATH", description: "Path or URL to OpenAPI 3.x spec (JSON or YAML)", required: true },
       { name: "OPENAPI_BASE_URL", description: `API base URL (default: ${baseUrl})`, required: false, default: baseUrl },
       { name: "OPENAPI_AUTH_TOKEN", description: "Bearer token or API key", required: false },
-      { name: "OPENAPI_AUTH_TYPE", description: "Auth type: bearer or apikey (default: bearer)", required: false, default: "bearer" },
+      { name: "OPENAPI_AUTH_TYPE", description: "Auth type: bearer, apikey, or basic (default: bearer)", required: false, default: "bearer" },
       { name: "OPENAPI_AUTH_HEADER", description: "Header name for apikey auth (default: X-API-Key)", required: false, default: "X-API-Key" },
+      { name: "OPENAPI_AUTH_USER", description: "Username for basic auth", required: false },
       { name: "OPENAPI_INCLUDE_TAGS", description: "Comma-separated tags to include", required: false },
       { name: "OPENAPI_EXCLUDE_OPERATIONS", description: "Comma-separated operationIds to exclude", required: false },
       { name: "OPENAPI_CONNECTOR_NAME", description: "Override connector name", required: false },

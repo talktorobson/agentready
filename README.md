@@ -4,6 +4,13 @@
 
 A framework for building AI agent tooling with dual interfaces: CLI for terminal agents (Claude Code, Codex, Gemini CLI) and MCP for browser agents, widgets, and multi-tenant environments.
 
+```bash
+# Point at any OpenAPI spec → instant CLI + MCP server
+OPENAPI_SPEC_PATH=https://raw.githubusercontent.com/github/rest-api-description/main/descriptions/api.github.com/api.github.com.json \
+  node dist/connectors/openapi/main.js --help
+# → 1068 CLI commands + MCP server from GitHub's full API spec
+```
+
 ## Why both?
 
 Terminal agents and browser agents consume tools differently.

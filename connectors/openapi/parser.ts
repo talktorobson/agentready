@@ -75,10 +75,11 @@ export function isRef(obj: unknown): obj is Reference {
   return typeof obj === "object" && obj !== null && "$ref" in obj;
 }
 
-// ─── $ref Resolution ──────────────────────────────────────────────
+// ─── $ref Resolution (cycle-safe, depth-limited) ─────────────────
+
+const MAX_REF_DEPTH = 20;
 
 export function resolveRef<T>(spec: OpenAPISpec, ref: string): T {
-  // Handle #/components/schemas/Foo style refs
   const path = ref.replace(/^#\//, "").split("/");
   let current: unknown = spec;
   for (const segment of path) {
@@ -91,29 +92,100 @@ export function resolveRef<T>(spec: OpenAPISpec, ref: string): T {
   return current as T;
 }
 
-export function resolve<T>(spec: OpenAPISpec, obj: T | Reference): T {
+export function resolve<T>(spec: OpenAPISpec, obj: T | Reference, seen?: Set<string>): T {
   if (isRef(obj)) {
-    const resolved = resolveRef<T>(spec, obj.$ref);
-    // Recursively resolve in case of chained refs
+    const refPath = obj.$ref;
+    const visited = seen || new Set<string>();
+    if (visited.has(refPath) || visited.size > MAX_REF_DEPTH) {
+      // Cycle or too deep — return a stub
+      return { type: "string", description: `(circular ref: ${refPath})` } as T;
+    }
+    visited.add(refPath);
+    const resolved = resolveRef<T>(spec, refPath);
     if (isRef(resolved)) {
-      return resolve(spec, resolved);
+      return resolve(spec, resolved, visited);
     }
     return resolved;
   }
   return obj;
 }
 
-// ─── Schema Resolution ────────────────────────────────────────────
+// ─── Schema Composition (allOf / oneOf / anyOf) ──────────────────
 
-export function resolveSchema(spec: OpenAPISpec, schema: Schema | Reference): Schema {
+function mergeAllOf(spec: OpenAPISpec, schemas: (Schema | Reference)[]): Schema {
+  const merged: Schema = { type: "object", properties: {}, required: [] };
+  for (const s of schemas) {
+    const resolved = resolveSchemaDeep(spec, s);
+    if (resolved.properties) {
+      merged.properties = { ...merged.properties, ...resolved.properties };
+    }
+    if (resolved.required) {
+      merged.required = [...(merged.required || []), ...resolved.required];
+    }
+    if (resolved.description && !merged.description) {
+      merged.description = resolved.description;
+    }
+    // Inherit type if set
+    if (resolved.type && resolved.type !== "object") {
+      merged.type = resolved.type;
+    }
+  }
+  if (merged.required && merged.required.length === 0) delete merged.required;
+  return merged;
+}
+
+// ─── Schema Resolution (deep, handles composition) ───────────────
+
+export function resolveSchemaDeep(spec: OpenAPISpec, schema: Schema | Reference, depth = 0): Schema {
+  if (depth > MAX_REF_DEPTH) {
+    return { type: "string", description: "(schema too deeply nested)" };
+  }
+
   const resolved = resolve<Schema>(spec, schema);
 
-  // Resolve items if present
+  // Handle allOf — merge all schemas into one
+  if (resolved.allOf && resolved.allOf.length > 0) {
+    const merged = mergeAllOf(spec, resolved.allOf);
+    // Also merge any direct properties from the parent schema
+    if (resolved.properties) {
+      merged.properties = { ...merged.properties, ...resolved.properties };
+    }
+    if (resolved.required) {
+      merged.required = [...(merged.required || []), ...resolved.required];
+    }
+    if (resolved.description) merged.description = resolved.description;
+    return merged;
+  }
+
+  // Handle oneOf/anyOf — use the first option (best effort)
+  if (resolved.oneOf && resolved.oneOf.length > 0) {
+    const first = resolveSchemaDeep(spec, resolved.oneOf[0], depth + 1);
+    if (resolved.description) first.description = resolved.description;
+    return first;
+  }
+  if (resolved.anyOf && resolved.anyOf.length > 0) {
+    // Filter out null types (common pattern: anyOf with null for nullable)
+    const nonNull = resolved.anyOf.filter(s => {
+      const r = resolve<Schema>(spec, s);
+      return r.type !== "null";
+    });
+    const pick = nonNull.length > 0 ? nonNull[0] : resolved.anyOf[0];
+    const first = resolveSchemaDeep(spec, pick, depth + 1);
+    if (resolved.description) first.description = resolved.description;
+    return first;
+  }
+
+  // Resolve items ref if present
   if (resolved.items && isRef(resolved.items)) {
     resolved.items = resolve<Schema>(spec, resolved.items);
   }
 
   return resolved;
+}
+
+// Backwards compat alias
+export function resolveSchema(spec: OpenAPISpec, schema: Schema | Reference): Schema {
+  return resolveSchemaDeep(spec, schema);
 }
 
 // ─── HTTP Methods ─────────────────────────────────────────────────

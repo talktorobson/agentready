@@ -7,16 +7,17 @@ import { apiRequest } from "./client.js";
 import {
   OpenAPISpec, Operation, Parameter, Schema, Reference,
   HTTP_METHODS, HttpMethod,
-  resolve, resolveSchema, isRef,
+  resolve, resolveSchemaDeep, isRef,
 } from "./parser.js";
 
 // ─── Config ───────────────────────────────────────────────────────
 
 export interface GeneratorConfig {
   baseUrl: string;
-  authType?: "bearer" | "apikey";
+  authType?: "bearer" | "apikey" | "basic";
   authToken?: string;
   authHeader?: string;
+  authUser?: string;
   includeTags?: string[];
   excludeOperations?: string[];
 }
@@ -48,11 +49,17 @@ function toolName(operation: Operation, method: string, path: string): string {
 // ─── OpenAPI Schema → Zod ─────────────────────────────────────────
 
 function schemaToZod(spec: OpenAPISpec, schema: Schema | Reference, desc?: string): z.ZodTypeAny {
-  const resolved = resolveSchema(spec, schema);
+  const resolved = resolveSchemaDeep(spec, schema);
   const description = desc || resolved.description || "";
 
-  // Enum
-  if (resolved.enum && resolved.enum.length > 0 && resolved.type === "string") {
+  // Enum (string or integer)
+  if (resolved.enum && resolved.enum.length > 0) {
+    if (resolved.type === "integer" || resolved.type === "number") {
+      // Numeric enum → string enum of the stringified values (CLI passes strings)
+      const vals = resolved.enum.map(String) as [string, ...string[]];
+      const zodEnum = z.enum(vals);
+      return description ? zodEnum.describe(description) : zodEnum;
+    }
     const zodEnum = z.enum(resolved.enum as [string, ...string[]]);
     return description ? zodEnum.describe(description) : zodEnum;
   }
@@ -69,7 +76,17 @@ function schemaToZod(spec: OpenAPISpec, schema: Schema | Reference, desc?: strin
       return description ? zodBool.describe(description) : zodBool;
     }
     case "array": {
-      // Framework only supports array of strings in zodToJsonSchema
+      // Check item type for better CLI experience
+      if (resolved.items) {
+        const itemSchema = resolveSchemaDeep(spec, resolved.items);
+        if (itemSchema.type === "integer" || itemSchema.type === "number") {
+          // Array of numbers — CLI still sends comma-split strings, but describe it
+          const zodArr = z.array(z.string());
+          const arrDesc = description || "Comma-separated numbers";
+          return zodArr.describe(arrDesc);
+        }
+      }
+      // Default: array of strings (framework's zodToJsonSchema limitation)
       const zodArr = z.array(z.string());
       return description ? zodArr.describe(description) : zodArr;
     }
@@ -81,7 +98,12 @@ function schemaToZod(spec: OpenAPISpec, schema: Schema | Reference, desc?: strin
       return z.string().describe(objDesc);
     }
     default: {
-      // Default to string for unknown types
+      // No type specified (common with composition) — check if it has properties
+      if (resolved.properties) {
+        const objDesc = description ? `JSON object: ${description}` : "JSON object";
+        return z.string().describe(objDesc);
+      }
+      // Default to string
       const zodStr = z.string();
       return description ? zodStr.describe(description) : zodStr;
     }
@@ -168,16 +190,17 @@ function collectBodyParams(
     };
   }
 
-  const schema = resolveSchema(spec, jsonContent.schema);
+  const schema = resolveSchemaDeep(spec, jsonContent.schema);
 
-  // Try to flatten simple object schemas
-  if (schema.type === "object" && schema.properties && !schema.allOf && !schema.oneOf && !schema.anyOf) {
+  // Try to flatten object schemas (including merged allOf results)
+  const isObject = schema.type === "object" || (!schema.type && schema.properties);
+  if (isObject && schema.properties) {
     const bodyParams: BodyParam[] = [];
     const requiredFields = new Set(schema.required || []);
     let canFlatten = true;
 
     for (const [propName, propSchema] of Object.entries(schema.properties)) {
-      const resolved = resolveSchema(spec, propSchema);
+      const resolved = resolveSchemaDeep(spec, propSchema);
 
       // Check if the property is too complex (nested object with its own properties)
       if (resolved.type === "object" && resolved.properties) {
@@ -349,6 +372,7 @@ export function generateTools(spec: OpenAPISpec, config: GeneratorConfig): AnyTo
             authType: toolConfig.authType,
             authToken: toolConfig.authToken,
             authHeader: toolConfig.authHeader,
+            authUser: toolConfig.authUser,
           });
 
           return { content: JSON.stringify(result, null, 2) };
