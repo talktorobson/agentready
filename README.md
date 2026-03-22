@@ -103,12 +103,29 @@ Works with on-prem Jira instances using Bearer token auth. 7 tools: get_issue, s
 export JIRA_BASE_URL=https://jira.example.com
 export JIRA_TOKEN=your-token
 
-node connectors/jira/main.js search_issues --jql "project = SDT AND status = Open"
-node connectors/jira/main.js create_issue --project SDT --type Task --summary "Fix the thing"
-node connectors/jira/main.js get_issue --issue-key SDT-1234 | jq '.fields.status.name'
+node dist/connectors/jira/main.js search_issues --jql "project = SDT AND status = Open"
+node dist/connectors/jira/main.js create_issue --project SDT --type Task --summary "Fix the thing"
+node dist/connectors/jira/main.js get-issue --issue-key SDT-1234 | jq '.fields.status.name'
 
 # MCP mode
-node connectors/jira/main.js --mcp
+node dist/connectors/jira/main.js --mcp
+```
+
+### GitHub
+
+Access repos, issues, PRs, and code search via the GitHub REST API. 5 tools: get_repo, list_issues, create_issue, search_code, list_pull_requests.
+
+```bash
+# CLI mode
+export GITHUB_TOKEN=ghp_your-token
+
+node dist/connectors/github/main.js get-repo --owner vercel --repo next.js
+node dist/connectors/github/main.js list-issues --owner facebook --repo react --labels "Type: Bug" --per-page 5
+node dist/connectors/github/main.js list-pull-requests --owner vercel --repo ai --state open
+node dist/connectors/github/main.js search-code --query "defineConnector language:typescript"
+
+# MCP mode
+node dist/connectors/github/main.js --mcp
 ```
 
 ## Framework API
