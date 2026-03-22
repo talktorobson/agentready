@@ -27,7 +27,7 @@ The answer is not one or the other. It is both, from one source of truth.
 
 ## Demo
 
-[![asciicast](https://asciinema.org/a/rPFSjHmS2iebmWeS.svg)](https://asciinema.org/a/rPFSjHmS2iebmWeS)
+[![asciicast](https://asciinema.org/a/nDo5AhvVxYc8UN3r.svg)](https://asciinema.org/a/nDo5AhvVxYc8UN3r)
 
 ## Quick Start
 
