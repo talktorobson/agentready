@@ -128,6 +128,49 @@ node dist/connectors/github/main.js search-code --query "defineConnector languag
 node dist/connectors/github/main.js --mcp
 ```
 
+### OpenAPI (Generic — any API)
+
+Point at any OpenAPI 3.x spec (JSON or YAML, file or URL) and get tools auto-generated. This is the framework's killer feature: zero hand-coding needed.
+
+```bash
+# Use the Petstore demo API
+export OPENAPI_SPEC_PATH=https://petstore3.swagger.io/api/v3/openapi.json
+export OPENAPI_BASE_URL=https://petstore3.swagger.io/api/v3
+
+node dist/connectors/openapi/main.js --help
+# → 19 tools auto-generated from the spec
+
+node dist/connectors/openapi/main.js getpetbyid --petId 1
+node dist/connectors/openapi/main.js findpetsbystatus --status available
+node dist/connectors/openapi/main.js getuserbyname --username user1
+
+# Filter by tag
+OPENAPI_INCLUDE_TAGS=pet node dist/connectors/openapi/main.js --help
+# → Only pet-related tools
+
+# Use with your own API
+export OPENAPI_SPEC_PATH=./my-api-spec.yaml
+export OPENAPI_BASE_URL=https://api.example.com
+export OPENAPI_AUTH_TOKEN=your-token
+node dist/connectors/openapi/main.js --help
+
+# MCP mode
+node dist/connectors/openapi/main.js --mcp
+```
+
+**Environment variables:**
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENAPI_SPEC_PATH` | Yes | File path or URL to OpenAPI 3.x spec |
+| `OPENAPI_BASE_URL` | No | Override the spec's `servers[0].url` |
+| `OPENAPI_AUTH_TOKEN` | No | Bearer token or API key |
+| `OPENAPI_AUTH_TYPE` | No | `bearer` (default) or `apikey` |
+| `OPENAPI_AUTH_HEADER` | No | Header name for apikey auth (default: `X-API-Key`) |
+| `OPENAPI_INCLUDE_TAGS` | No | Comma-separated tags to include |
+| `OPENAPI_EXCLUDE_OPERATIONS` | No | Comma-separated operationIds to exclude |
+| `OPENAPI_CONNECTOR_NAME` | No | Override the connector name |
+
 ## Framework API
 
 ### `defineTool(def)`

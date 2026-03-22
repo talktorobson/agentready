@@ -14,11 +14,20 @@
     "build": "tsc",
     "dev": "tsc --watch"
   },
-  "keywords": ["ai", "agent", "mcp", "cli", "model-context-protocol", "tooling", "automation"],
+  "keywords": [
+    "ai",
+    "agent",
+    "mcp",
+    "cli",
+    "model-context-protocol",
+    "tooling",
+    "automation"
+  ],
   "author": "Robson",
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.10.1",
+    "yaml": "^2.8.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {
