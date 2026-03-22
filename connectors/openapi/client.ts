@@ -8,6 +8,7 @@ export interface RequestConfig {
   query?: Record<string, string>;
   headers?: Record<string, string>;
   body?: unknown;
+  formEncoded?: boolean;
   authType?: "bearer" | "apikey" | "basic";
   authToken?: string;
   authHeader?: string;
@@ -49,8 +50,17 @@ export async function apiRequest(config: RequestConfig): Promise<unknown> {
   // Body
   const init: RequestInit = { method: config.method.toUpperCase(), headers };
   if (config.body !== undefined && config.method.toUpperCase() !== "GET") {
-    headers["Content-Type"] = "application/json";
-    init.body = JSON.stringify(config.body);
+    if (config.formEncoded && typeof config.body === "object" && config.body !== null) {
+      headers["Content-Type"] = "application/x-www-form-urlencoded";
+      const params = new URLSearchParams();
+      for (const [k, v] of Object.entries(config.body as Record<string, unknown>)) {
+        if (v !== undefined && v !== null) params.set(k, String(v));
+      }
+      init.body = params.toString();
+    } else {
+      headers["Content-Type"] = "application/json";
+      init.body = JSON.stringify(config.body);
+    }
   }
 
   const res = await fetch(url.toString(), init);

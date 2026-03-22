@@ -170,16 +170,18 @@ function collectBodyParams(
   spec: OpenAPISpec,
   requestBody: Operation["requestBody"],
   existingNames: Set<string>,
-): { params: BodyParam[]; isFlattened: boolean } {
-  if (!requestBody) return { params: [], isFlattened: false };
+): { params: BodyParam[]; isFlattened: boolean; isFormEncoded: boolean } {
+  if (!requestBody) return { params: [], isFlattened: false, isFormEncoded: false };
 
   const body = isRef(requestBody)
     ? resolve<{ description?: string; required?: boolean; content: Record<string, { schema?: Schema | Reference }> }>(spec, requestBody)
     : requestBody;
 
-  const jsonContent = body.content["application/json"];
-  if (!jsonContent?.schema) {
-    // Non-JSON body → single raw body param
+  // Support both JSON and form-urlencoded (Stripe uses form exclusively)
+  const contentEntry = body.content["application/json"]
+    || body.content["application/x-www-form-urlencoded"];
+  if (!contentEntry?.schema) {
+    // Unknown content type → single raw body param
     return {
       params: [{
         name: "body",
@@ -187,10 +189,12 @@ function collectBodyParams(
         zodType: z.string().describe("Request body (raw)"),
       }],
       isFlattened: false,
+      isFormEncoded: false,
     };
   }
 
-  const schema = resolveSchemaDeep(spec, jsonContent.schema);
+  const isFormEncoded = !body.content["application/json"] && !!body.content["application/x-www-form-urlencoded"];
+  const schema = resolveSchemaDeep(spec, contentEntry.schema);
 
   // Try to flatten object schemas (including merged allOf results)
   const isObject = schema.type === "object" || (!schema.type && schema.properties);
@@ -222,7 +226,7 @@ function collectBodyParams(
     }
 
     if (canFlatten && bodyParams.length > 0) {
-      return { params: bodyParams, isFlattened: true };
+      return { params: bodyParams, isFlattened: true, isFormEncoded };
     }
   }
 
@@ -238,6 +242,7 @@ function collectBodyParams(
       zodType: z.string().describe(desc),
     }],
     isFlattened: false,
+    isFormEncoded,
   };
 }
 
@@ -280,7 +285,7 @@ export function generateTools(spec: OpenAPISpec, config: GeneratorConfig): AnyTo
       const paramNames = new Set(params.map(p => p.name));
 
       // Collect body params
-      const { params: bodyParams, isFlattened } = collectBodyParams(
+      const { params: bodyParams, isFlattened, isFormEncoded } = collectBodyParams(
         spec, operation.requestBody, paramNames,
       );
 
@@ -303,6 +308,7 @@ export function generateTools(spec: OpenAPISpec, config: GeneratorConfig): AnyTo
       const toolMethod = method;
       const toolConfig = config;
       const toolBodyFlattened = isFlattened;
+      const toolFormEncoded = isFormEncoded;
       const toolParams = params;
 
       const tool: AnyToolDef = {
@@ -369,6 +375,7 @@ export function generateTools(spec: OpenAPISpec, config: GeneratorConfig): AnyTo
             query: Object.keys(query).length > 0 ? query : undefined,
             headers: Object.keys(headers).length > 0 ? headers : undefined,
             body,
+            formEncoded: toolFormEncoded,
             authType: toolConfig.authType,
             authToken: toolConfig.authToken,
             authHeader: toolConfig.authHeader,
