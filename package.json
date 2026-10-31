@@ -26,7 +26,7 @@
   "author": "Robson",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.10.1",
+    "@modelcontextprotocol/sdk": "^1.32.0",
     "yaml": "^2.8.3",
     "zod": "^3.23.8"
   },
